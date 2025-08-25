@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="shortcut icon"  href="/sr/favicon.ico" />
+<link href="/sr/jstree/themes/default/style.min.css" rel="stylesheet" type="text/css"><link rel="stylesheet" href="/sr/jquery-ui/jquery-ui.min.css">
+<link rel="stylesheet" type="text/css" href="https://static.cineca.it/jd/npm/jgrowl@1.4.9/jquery.jgrowl.min.css" />
+<link rel="stylesheet" href="https://static.cineca.it/jd/npm/select2@4.0.13/dist/css/select2.min.css" />
+<link rel="stylesheet" href="https://static.cineca.it/jd/npm/select2-bootstrap-5-theme@1.1.1/dist/select2-bootstrap-5-theme.min.css" />
+<link rel="stylesheet" href="/sr/cineca/css/bootstrap-ricerca.min.css">
+<link rel="stylesheet" href="/sr/local.css"><title></title>
+	<script src="https://static.cineca.it/jd/npm/jquery@3.7.1/dist/jquery.min.js" integrity="sha512-v2CJ7UaYy4JwqLDIrZUI/4hqeoQieOmAZNXBeQyjo21dadnwR+8ZaIJVT8EE2iyI61OV8e6M8PP2/4hpQINQ/g==" crossorigin="anonymous"></script>
+<script type="text/javascript" src="/sr/jquery-ui/jquery-ui.min.js"></script>
+<script type="text/javascript" src="/sr/jquery-ui-i18n/jquery.ui.datepicker-it.latest.js" charset="utf-8"></script>
+<script src="https://static.cineca.it/jd/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+<script src="https://static.cineca.it/jd/npm/jgrowl@1.4.9/jquery.jgrowl.min.js"></script>
+<script src="https://static.cineca.it/jd/npm/select2@4.0.13/dist/js/select2.full.min.js"></script>
+<script type="text/javascript" src="/sr/jstree/jstree.min.js"></script><script type="text/javascript" src="/sr/jquery/js/jquery.displaytag-ajax-1.2.js"></script>
+<script src="https://static.cineca.it/jd/npm/js-cookie@3.0.5/dist/js.cookie.min.js" integrity="sha256-WCzAhd2P6gRJF9Hv3oOOd+hFJi/QJbv+Azn4CGB8gfY=" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+	var JQ = $;
+	var j = $;
+</script>
+<script type="text/javascript">
+</script>
+<script type="text/javascript" src="/sr/cineca/js/cilea.js?fwkVersion=25.8.0.1"></script>
+<script type="text/javascript" src="/sr/cineca/js/fragment.js?fwkVersion=25.8.0.1"></script>
+<script type="text/javascript" src="/sr/cineca/js/treeview.js?fwkVersion=25.8.0.1"></script>
+<script type="text/javascript" src="/sr/cineca/js/ap-tool.js?fwkVersion=25.8.0.1"></script>
+<span style="display:none;" id="rememberToSaveText">Attenzione: i dati modificati non sono ancora stati salvati. Per confermare inserimenti o cancellazioni di voci è necessario confermare con il tasto SALVA/INSERISCI in fondo alla pagina</span>
+<script type="text/javascript" src="/sr/cineca/js/print.js?fwkVersion=25.8.0.1"></script>
+<script type="text/javascript" src="/sr/cineca/js/widget.js?fwkVersion=25.8.0.1"></script>
+<script type="text/javascript" src="/sr/cineca/js/layout.js?fwkVersion=25.8.0.1"></script>
+
+
+
+
+<script type="text/javascript">
+	var authenticatedPersonId='';
+	var authenticatedUser=false;
+</script>
+<script type="text/javascript" src="https://www.research.unipd.it/static/js/utils.js"></script>
+	<script type="text/javascript" src="https://www.research.unipd.it/static/js/choice-support.js"></script>
+<script type"text/javascript">
+$(document).ready(function() {
+	checkMoreless();
+});
+function checkMoreless() {
+	if($('.moreless-more').length) {
+		var more = $('<a class="btn-link"></a>').html('&nbsp;espandi');	
+		more.click(function(){
+			var moretext = $(this).next('.moreless-more');
+			var lesstext = $(this).prev('.moreless-fixed');		
+			lesstext.html(lesstext.html().substring(0, lesstext.html().length-3));		
+			moretext.toggleClass('hide');
+			$(this).toggleClass('hide');
+			var less = $('<a class="btn-link"></a>').html('&nbsp;comprimi');
+			less.click(function(){
+				var moretext = $(this).prev('.moreless-more');
+				moretext.toggleClass('hide');
+				$(this).toggleClass('hide');
+				moretext.prev('a').toggleClass('hide');
+				var elements = document.getElementsByTagName('span');
+				for (var i = 0; i < elements.length; i++) {				
+					if((elements[i].className).indexOf('moreless-fixed') > -1) {
+						if(elements[i].innerHTML.indexOf('...') == -1){
+							elements[i].innerHTML=elements[i].innerHTML+'...';												
+						}
+					}
+				}
+			});
+			moretext.after(less);
+		});	
+		$('.moreless-more').before(more);
+		$('.moreless-more').toggleClass('hide');
+		
+	}
+}
+</script><script>
+      window.customCookieJsonConfigPath='/sr/cookie-config.json';
+    </script>
+	<script src="https://static.iu.cineca.it/v1/default.js"></script>
+	<script type="text/javascript">
+	function isThirdPartyCookieEnabled() {
+		var cookieString = Cookies.get('cc_cookie');
+		if (cookieString==null||cookieString=="")
+			return false;
+		var cookieJson = JSON.parse(cookieString);
+		var retValue = false;
+		$.each(cookieJson.level , function (key, value) {
+			if(value == 'thirdParty')
+				retValue = true;
+		});
+		return retValue;
+	}
+	$(document).on('click', '.c-bn', function() { 
+		Cookies.set('thirdParty',isThirdPartyCookieEnabled(), { path: '/'});
+	});
+	Cookies.set('thirdParty',isThirdPartyCookieEnabled(), { path: '/' });
+	</script>
+<script type="text/javascript">
+	$(document).ready(function() {
+		if (typeof trackEventCategoryDone === "undefined") {
+			
+			trackEvent('trackPageView');
+		}
+	});
+	</script>
+<script type="text/javascript" src="/sr/local.js?fwkVersion=25.8.0.1"></script>
+
+	
+
+
+
+</head>
+<body class="body-default body-anonymous">
+	
+
+
+
+<header class="navbar navbar-expand-md navbar-dark sticky-top layout-top bg-primary iu-hide">
+	<nav class="container-fluid flex-wrap flex-md-nowrap" aria-label="menu top">
+		<a class="navbar-brand ps-0 pt-0 pb-0 pe-3" href="https://www.research.unipd.it/" aria-label="link homepage" id="uiLogoLink">
+			<img src="/sr/logo_iris.png" alt="IRIS" id="uiLogoImg" class="d-block my-1 navbar-brand-img"/>
+		</a>
+		<a class="navbar-brand ps-3 pt-0 pb-0 pe-3 me-3" href="" aria-label="link homepage università" id="customerLogoLink">
+			<img src="/sr/logo_customer.png" alt="IRIS" id="clientLogoImg" class="d-block my-1 navbar-brand-img"/>
+		</a>
+		<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="mostra/nascondi menu">
+			<span class="fas fa-bars"></span>
+		</button>
+		<div class="collapse navbar-collapse" id="navbarSupportedContent">
+			<ul class="navbar-nav flex-row flex-wrap pt-2 py-md-0">
+				
+
+
+
+
+
+
+
+	
+</ul>
+			<ul class="navbar-nav flex-row flex-wrap ms-md-auto">
+				<li class="nav-item col-6 col-md-auto " id="topNavHome">
+					<a class="nav-link p-2" href="https://www.research.unipd.it/">Home</a>
+				</li>
+				<li class="nav-item col-6 col-md-auto dropdown">
+					<a class="nav-link p-2 dropdown-toggle" href="#" id="navbarDropdownBrowse" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						Sfoglia</a>
+					<div class="dropdown-menu" aria-labelledby="navbarDropdownBrowse">
+						<a class="dropdown-item" href="https://www.research.unipd.it/community-list">Macrotipologie<br/>&amp;&nbsp;tipologie</a>
+							<div class="dropdown-divider"></div>
+						<a class="dropdown-item" href="https://www.research.unipd.it/browse?type=author">Autore</a>
+						<a class="dropdown-item" href="https://www.research.unipd.it/browse?type=title">Titolo</a>
+						<a class="dropdown-item" href="https://www.research.unipd.it/browse?type=relationJournal">Riviste</a>
+						<a class="dropdown-item" href="https://www.research.unipd.it/browse?type=relationSerie">Serie</a>
+						</div>
+				</li>
+			</ul>
+			<form class="navbar-search-top d-flex" action="https://www.research.unipd.it/simple-search" method="get" role="search">
+				<div class="input-group p-2">
+					<input class="form-control bg-primary layout-top-input" type="search" placeholder="Search&nbsp;IRIS" name="query" id="tequery" size="25" aria-label="Search&nbsp;IRIS">
+					<button class="btn btn-primary layout-top-input-btn" type="submit"><span class="fas fa-search"></span></button>
+				</div>
+			</form>
+			<ul class="navbar-nav flex-row flex-wrap">
+		 		<li class="nav-item col-6 col-md-auto dropdown">
+					<a class="nav-link p-2 dropdown-toggle" href="#" id="navbarDropdownLanguage" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+						IT</a>
+					<div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdownLanguage">
+						<a class="dropdown-item" href="javascript:reloadLanguageModuleAll('https://www.research.unipd.it',['bi','rm','gw','ma','','saiku','ap'],'/language/change.json','it');" ><img src="/sr/cineca/images/flag/flag_it.png" alt="Italiano" title=""/>&nbsp;Italiano</a>
+						<a class="dropdown-item" href="javascript:reloadLanguageModuleAll('https://www.research.unipd.it',['bi','rm','gw','ma','','saiku','ap'],'/language/change.json','en');" ><img src="/sr/cineca/images/flag/flag_en.png" alt="English" title="English"/>&nbsp;English</a>
+							</div>
+				</li>
+				<li class="nav-item col-6 col-md-auto ">
+					
+
+
+
+
+
+
+
+
+
+<script type="text/javascript">
+<!-- Javascript starts here
+document.write('<a class="nav-link p-2" href="#" onClick="var popupwin = window.open(\'https://wiki.u-gov.it/confluence/x/HJEWAw\',\'dspacepopup\',\'height=600,width=850,resizable,scrollbars\');popupwin.focus();return false;"><span class="fas fa-question-circle" title="Aiuto"></span></a>');
+// -->
+</script><noscript><a href="https://wiki.u-gov.it/confluence/x/HJEWAw" target="dspacepopup"><span class="fas fa-question-circle" title="Aiuto"></span></a></noscript>
+</li>
+				<li class="nav-item col-6 col-md-auto dropdown"><a class="nav-link p-2" href="https://www.research.unipd.it/securityLanding.htm">LOGIN</a></li>
+				</ul>
+		</div>
+	</nav>
+</header>
+
+
+
+
+<div class="site-header iu-hide bg-secondary text-white">
+				<div class="site-title CinecaSiteIntroduction" id="headerText">
+					<div>
+						 </div>
+				</div>
+			</div>
+		<div class="container-xxl ps-0 pe-0 layout-no-sidebar" id="mainContainerDiv">
+		
+
+
+
+<main class="layout-main" id="content">
+			<div class="container-fluid page-content">
+	        	<nav aria-label="breadcrumb" class="mt-2 iu-hide">
+	<form name="breadCrumbsForm" id="breadCrumbsForm" method="post">
+		<ol class="breadcrumb rounded">
+			</ol>
+	</form>
+</nav>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h1>Pagina o link non valido</h1>
+<p>
+	Non &egrave; possibile raggiungere l&apos;URL richiesto. Questo pu&ograve; essere causato da uno dei seguenti motivi:
+</p>
+<ul><li>L'URL della pagina corrente non &egrave; corretto - se hai utilizzato un link non proveniente da IRIS potrebbe non essere digitato correttamente o non funzionante.</li><li>Hai inserito un ID non valido nel modulo (es. handle errato)</li><li>Stai puntando ad una risorsa non accessibile pubblicamente (ad esempio file ad accesso ristretto o non ancora validati)</li><li>Stai utilizzando un token già utilizzato</li></ul>
+<p>Se hai problemi, o necessiti dell'ID per proseguire le attivit&agrave;, non esitate a contattare gli amministratori del sito.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<p><a href="/">Vai alla home page di IRIS</a></p>
+				
+
+
+
+<script type="text/javascript">
+	function showAbout() {
+		jQuery.ajax({
+			url: "/about.modal",
+			type: 'GET',
+			success: function(data) {
+                var $modal = jQuery(data);
+				jQuery('body').append($modal);
+                $modal.filter('.modal').modal('show');
+                $modal.filter('.modal').on('hidden.bs.modal', function(){
+                	$modal.remove();
+				});
+                $modal.attr('id','modal_about');
+                $modal.modal('show')
+			},
+			error: function(data,extStatus, errorThrown) {
+				$.jGrowl('errore generico di comunicazione', { sticky: true, theme: 'bg-danger text-white' });
+			}
+		});
+	}
+	function showCookies() {
+		showCookieSettings();
+	}
+	function showPrivacyInfo() {
+		window.open('/aboutPrivacyInfo.htm', '_blank').focus();
+	}	
+</script>
+<script type="text/javascript">
+	function asn1820List() {
+		
+
+
+
+
+		jQuery('#asn1820-div').modal('show');
+			
+	}
+	</script>
+	<div class="modal fade" id="asn1820-div" tabindex="-1" role="dialog" aria-labelledby="asn1820Label" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h4 class="modal-title" id="asn1820Label">simulazione ASN</h4>
+					<button type="button" class="btn-close" data-bs-dismiss="modal" aria-hidden="true"></button>
+				</div>
+				<div class="modal-body with-padding">
+					Il report seguente simula gli indicatori relativi alla propria produzione scientifica in relazione alle soglie ASN 2023-2025 del proprio SC/SSD. Si ricorda che il superamento dei valori soglia (almeno 2 su 3) è requisito necessario ma non sufficiente al conseguimento dell'abilitazione.<br/>La simulazione si basa sui dati IRIS e sugli indicatori bibliometrici alla data indicata e non tiene conto di eventuali periodi di congedo obbligatorio, che in sede di domanda ASN danno diritto a incrementi percentuali dei valori. La simulazione può differire dall'esito di un’eventuale domanda ASN sia per errori di catalogazione e/o dati mancanti in IRIS, sia per la variabilità dei dati bibliometrici nel tempo. Si consideri che Anvur calcola i valori degli indicatori all'ultima data utile per la presentazione delle domande.<br/><br/>La presente simulazione è stata realizzata sulla base delle specifiche raccolte sul tavolo ER del Focus Group IRIS coordinato dall’Università di Modena e Reggio Emilia e delle regole riportate nel DM 589/2018 e allegata Tabella A. Cineca, l’Università di Modena e Reggio Emilia e il Focus Group IRIS non si assumono alcuna responsabilità in merito all’uso che il diretto interessato o terzi faranno della simulazione. Si specifica inoltre che la simulazione contiene calcoli effettuati con dati e algoritmi di pubblico dominio e deve quindi essere considerata come un mero ausilio al calcolo svolgibile manualmente o con strumenti equivalenti.</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+					<button type="button" class="btn btn-primary" onclick="location.href='/bi/asn1820/widgetSearch.htm?CLEAR&dataType=MV'">procedi</button>
+				</div>
+			</div>
+		</div>
+	</div>
+<div class="modal fade" id="genericFragmentErrorModal" tabindex="-1" role="dialog" aria-labelledby="modal-title" aria-hidden="true" style="z-index: 10000">
+	<div class="modal-dialog">	
+		<div class="modal-content">
+			<div class="modal-header">
+				<h4 class="modal-title">Errore</h4>
+				<button aria-hidden="true" data-bs-dismiss="modal" class="btn-close" type="button"></button>						
+			</div>
+			<div class="modal-body with-padding">					
+				<div class="callout alert bg-danger">
+					<h5>Errore</h5>
+					<p id="genericFragmentErrorModalContent"></p>
+				</div>
+			</div>
+		</div>
+	</div>	
+</div>
+<script type="text/javascript">
+	var forceLogindModuleMap = reloadInit(['bi','rm','gw','ma','','saiku','ap']);
+	</script>
+</div>
+		</main>
+	</div>
+	<div class="clearfix"></div>
+<footer class="bd-footer py-2 mt-2 bg-light d-flex justify-content-between fw-bold iu-hide">
+	<div class="ms-2">
+		Powered by <a class="text-decoration-none" href="https://www.cineca.it/sistemi-informativi-universita/ricerca/iris-la-gestione-della-ricerca">IRIS</a>	<span style="margin-left: 10px; margin-right: 10px;">-</span>	<a class="text-decoration-none" onclick="showAbout();" href="#">about IRIS</a>	<span style="margin-left: 10px; margin-right: 10px;">-</span>	<a class="text-decoration-none" onclick="showCookies();" href="#">Utilizzo dei cookie</a>	<span style="margin-left: 10px; margin-right: 10px;">-</span>	<a class="text-decoration-none" onclick="showPrivacyInfo();" href="#">Privacy</a>	</div>
+	<div class="me-2">
+		
+
+
+
+
+
+	<a href="http://www.cineca.it" target="_blank"><img alt="Logo CINECA" height="15px;" src="/sr/cineca/images/interface/logo-cineca-small-white.png"></a>
+	
+<span>&nbsp;Copyright&nbsp;&copy;&nbsp;2025&nbsp;</span><a href="/htmlmap" style="display:none;"></a></div>
+</footer></body>
+</html>
