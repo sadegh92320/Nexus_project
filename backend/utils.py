@@ -93,7 +93,8 @@ def convert_work_to_node(
 
 
 def read_api_key():
-    with open('/Users/sadeghemami/connected_paper_app/backend/semantic_scholar_api_key.txt', 'r') as f:
+    with open(
+        r'C:\Users\Parv\Doc\Nexus_project\backend\semantic_scholar_api_key.txt') as f:
         key = f.readlines()
 
     return key[0]

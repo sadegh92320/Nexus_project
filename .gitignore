@@ -1,0 +1,5 @@
+
+*.pdf
+**/env
+semantic_scholar_api_key.txt
+**/__pycache__

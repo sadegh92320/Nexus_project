@@ -65,14 +65,16 @@ class Graph:
 
         print("Doing relevance weighting")
         for i, node in enumerate(self.nodes[1:]):
-
             progress_bar = i+1 / (len(self.nodes) - 1) * 100
             print(f"{progress_bar} % completed\n")
 
             try:
                 if hasattr(node, "fulltext"):
-                    relevance, k1, k2 = get_paper_similarity(
+                    relevance, _, k2 = get_paper_similarity(
                         self.primary_node.fulltext, node.fulltext)
+                else:
+                    relevance = 0.2
+                    k2 = None        
             except Exception as e:
                 print("Exception {e}")
                 relevance = 0.2
