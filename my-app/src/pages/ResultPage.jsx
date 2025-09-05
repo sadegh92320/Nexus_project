@@ -180,8 +180,9 @@ function ResultPageInner() {
         const others = data.nodes.filter((n) => n.title !== data.primary_node_id);
 
         const norm = (n) => ({
-          id: n?.id ?? n?.title ?? Math.random().toString(36).slice(2),
+          id: n?.paperId ?? n?.title ?? Math.random().toString(36).slice(2),
           title: n?.title ?? "(untitled)",
+          tldr: n?.tldr ?? "",
           year: n?.year ?? "",
           keywords: Array.isArray(n?.keywords) ? n.keywords : [],
           doi: n?.doi ?? "",
@@ -192,6 +193,7 @@ function ResultPageInner() {
           field: n?.field ?? "Unknown",
           subfield: n?.subfield ?? "Unknown",
           relevance: typeof n?.relevance === "number" ? n.relevance : 0.2,
+          authors: n?.authors ?? ""
         });
 
         const normalizedCenter = center ? norm(center) : null;

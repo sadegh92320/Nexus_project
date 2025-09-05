@@ -47,6 +47,17 @@ class SemanticNode(Node):
     def __init__(self, paper_object: dict):
 
         if paper_object is not None:
+            
+            try:
+                self.citations = paper_object['citationCount']
+                self.topic = paper_object['fieldsOfStudy']
+                self.tldr = paper_object['tldr']['text']
+                self.doi = paper_object['externalIds']['DOI']
+                self.authors = [i['name'] for i in paper_object['authors'][:3]]
+            except Exception as e:
+                print(e)
+            
+
             for key, value in paper_object.items():
                 setattr(self, key, value)
         else:
