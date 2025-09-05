@@ -37,14 +37,22 @@ class ResultErrorBoundary extends React.Component {
 }
 
 /* -------------------- Page -------------------- */
+
+
 function ResultPageInner() {
   const navigate = useNavigate();
   const { paperId } = useParams();
   const location = useLocation();
   const work = location.state?.work;
 
+  // Two graphs from API
+  const [graphMain, setGraphMain] = useState(null);
+  const [graphCitedBy, setGraphCitedBy] = useState(null);
 
-  // Data + UI state
+  // Which graph is displayed
+  const [view, setView] = useState("main"); // "main" or "citedBy"
+
+  // Shared rendering state
   const [graphJson, setGraphJson] = useState(null);
   const [nodes, setNodes] = useState([]);
   const [centerNode, setCenterNode] = useState(null);
@@ -54,35 +62,6 @@ function ResultPageInner() {
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState("");
 
-  // Diagnostics
-  const [diag, setDiag] = useState({
-    method: "",
-    url: "",
-    status: "",
-    contentType: "",
-    textSnippet: "",
-    durationMs: 0,
-  });
-
-  // In-page log console
-  const [logs, setLogs] = useState([]);
-  const addLog = (msg, obj) => {
-    const line = `[${new Date().toLocaleTimeString()}] ${msg}${obj ? " " + JSON.stringify(obj).slice(0, 400) : ""}`;
-    console.log(msg, obj ?? "");
-    setLogs((prev) => [...prev, line].slice(-200));
-  };
-  // capture global errors
-  useEffect(() => {
-    const onError = (e) => addLog("window.onerror", { message: e.message, stack: e.error?.stack });
-    const onRej = (e) => addLog("unhandledrejection", { reason: String(e.reason) });
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRej);
-    return () => {
-      window.removeEventListener("error", onError);
-      window.removeEventListener("unhandledrejection", onRej);
-    };
-  }, []);
-
   // Layout constants
   const centerRadius = 40;
   const nodeRadius = 30;
@@ -91,7 +70,6 @@ function ResultPageInner() {
 
   // Resize handling
   useEffect(() => {
-    addLog("📄 ResultPage mounted", { paperId, hasState: Boolean(location.state) });
     const resizeHandler = () => {
       const minDim = Math.min(window.innerWidth, window.innerHeight);
       setGraphRadius(minDim / 1.7);
@@ -99,147 +77,103 @@ function ResultPageInner() {
     resizeHandler();
     window.addEventListener("resize", resizeHandler);
     return () => window.removeEventListener("resize", resizeHandler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch graph (supports POST with work OR GET by id)
+  // Fetch both graphs once
   useEffect(() => {
     let aborted = false;
-    const controller = new AbortController();
 
-    const fetchGraph = async () => {
+    async function fetchGraphs() {
       setLoading(true);
-      setErrMsg("");
-      setGraphJson(null);
-      setNodes([]);
-      setCenterNode(null);
-
       try {
-        const hasWork = !!location.state?.work;
-        const method = hasWork ? "POST" : "GET";
-        const url = hasWork
-          ? "/api/paper-graph"
-          : `/api/paper-graph?id=${encodeURIComponent(paperId || "")}`;
-
-        addLog("📡 Fetch start", { method, url, hasWork, paperId });
-
-        const t0 = performance.now();
-        const timeoutId = setTimeout(() => controller.abort(), 120000); // 120s safety timeout
-
-        const res = await await fetch("/api/paper-graph", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ work }), // 👈 matches server.py
-        });
-        
-        console.log("📡 Fetching URL:", url);
-
-
-        clearTimeout(timeoutId);
-
-        const contentType = res.headers.get("content-type") || "";
-        const rawText = await res.text();
-        const durationMs = Math.round(performance.now() - t0);
-
-        addLog("📩 Fetch end", { status: res.status, contentType, durationMs, preview: rawText.slice(0, 200) });
-
-        setDiag({
-          method,
-          url: res.url || url,
-          status: `${res.status} ${res.statusText}`,
-          contentType,
-          textSnippet: rawText.slice(0, 400),
-          durationMs,
-        });
+        const [mainRes, citedByRes] = await Promise.all([
+          fetch("/api/paper-graph", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ work }),
+          }),
+          fetch("/api/paper-graph/cited-by", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ work }),
+          }),
+        ]);
 
         if (aborted) return;
 
-        let data;
-        try {
-          data = JSON.parse(rawText);
-        } catch (e) {
-          addLog("❌ JSON parse error", { error: String(e) });
-          throw new Error("Backend did not return JSON.");
-        }
+        const [mainJson, citedByJson] = await Promise.all([
+          mainRes.json(),
+          citedByRes.json(),
+        ]);
 
-        if (!res.ok) {
-          const msg = data?.error || `Server error: ${res.status}`;
-          addLog("❌ Backend error payload", data);
-          throw new Error(msg);
-        }
-
-        if (!data || !Array.isArray(data.nodes)) {
-          addLog("❌ Invalid graph payload (missing nodes[])", { keys: Object.keys(data || {}) });
-          throw new Error("Invalid graph payload (missing nodes[]).");
-        }
-
-        setGraphJson(data);
-
-        // find center (by title == primary_node_id)
-        const center = data.nodes.find((n) => n.title === data.primary_node_id) || null;
-        const others = data.nodes.filter((n) => n.title !== data.primary_node_id);
-
-        const norm = (n) => ({
-          id: n?.paperId ?? n?.title ?? Math.random().toString(36).slice(2),
-          title: n?.title ?? "(untitled)",
-          tldr: n?.tldr ?? "",
-          year: n?.year ?? "",
-          keywords: Array.isArray(n?.keywords) ? n.keywords : [],
-          doi: n?.doi ?? "",
-          citations: n?.citations ?? 0,
-          topic: n?.topic ?? "",
-          related_topics: Array.isArray(n?.related_topics) ? n.related_topics : [],
-          domain: n?.domain ?? "Unknown",
-          field: n?.field ?? "Unknown",
-          subfield: n?.subfield ?? "Unknown",
-          relevance: typeof n?.relevance === "number" ? n.relevance : 0.2,
-          authors: n?.authors ?? ""
-        });
-
-        const normalizedCenter = center ? norm(center) : null;
-        const normalizedOthers = others.map(norm);
-
-        // sort domain > field > subfield
-        normalizedOthers.sort((a, b) => {
-          if (a.domain !== b.domain) return a.domain.localeCompare(b.domain);
-          if (a.field !== b.field) return a.field.localeCompare(b.field);
-          return a.subfield.localeCompare(b.subfield);
-        });
-
-        setCenterNode(normalizedCenter);
-        setNodes(normalizedOthers);
-
-        window.__NEXUS_LAST_GRAPH__ = data; // for manual inspection
-        addLog("✅ Graph parsed", {
-          totalNodes: normalizedOthers.length + (normalizedCenter ? 1 : 0),
-          center: normalizedCenter?.title,
-        });
+        setGraphMain(mainJson);
+        setGraphCitedBy(citedByJson);
+        setGraphJson(mainJson); // default to main
       } catch (err) {
-        if (err?.name === "AbortError") {
-          addLog("⚠️ Fetch aborted (timeout or route changed)");
-          setErrMsg("Request aborted (timeout).");
-        } else {
-          addLog("❌ Graph fetch failed", { error: String(err) });
-          setErrMsg(String(err));
-        }
+        console.error("Graph fetch failed", err);
+        setErrMsg(String(err));
       } finally {
         if (!aborted) setLoading(false);
       }
-    };
-
-    if (location.state?.work || paperId) {
-      fetchGraph();
-    } else {
-      const msg = "No input provided: neither work object nor paperId found.";
-      addLog("⚠️ " + msg);
-      setErrMsg(msg);
     }
 
+    if (paperId || work) fetchGraphs();
     return () => {
       aborted = true;
-      controller.abort();
     };
-  }, [paperId, location.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [paperId, work]);
+
+  // Parse graphJson whenever it changes
+  useEffect(() => {
+    if (!graphJson) return;
+
+    const norm = (n) => ({
+      id: n?.paperId ?? n?.title ?? Math.random().toString(36).slice(2),
+      title: n?.title ?? "(untitled)",
+      tldr: n?.tldr ?? "",
+      year: n?.year ?? "",
+      keywords: Array.isArray(n?.keywords) ? n.keywords : [],
+      doi: n?.doi ?? "",
+      citations: n?.citations ?? 0,
+      topic: n?.topic ?? "",
+      related_topics: Array.isArray(n?.related_topics) ? n.related_topics : [],
+      domain: n?.domain ?? "Unknown",
+      field: n?.field ?? "Unknown",
+      subfield: n?.subfield ?? "Unknown",
+      relevance: typeof n?.relevance === "number" ? n.relevance : 0.2,
+      authors: n?.authors ?? "",
+    });
+
+    const center = graphJson.nodes.find(
+      (n) => n.title === graphJson.primary_node_id
+    );
+    const others = graphJson.nodes.filter(
+      (n) => n.title !== graphJson.primary_node_id
+    );
+
+    const normalizedCenter = center ? norm(center) : null;
+    const normalizedOthers = others.map(norm);
+
+    normalizedOthers.sort((a, b) => {
+      if (a.domain !== b.domain) return a.domain.localeCompare(b.domain);
+      if (a.field !== b.field) return a.field.localeCompare(b.field);
+      return a.subfield.localeCompare(b.subfield);
+    });
+
+    setCenterNode(normalizedCenter);
+    setNodes(normalizedOthers);
+  }, [graphJson]);
+
+  // Switch view
+  const handleToggleView = () => {
+    if (view === "main") {
+      setView("citedBy");
+      setGraphJson(graphCitedBy);
+    } else {
+      setView("main");
+      setGraphJson(graphMain);
+    }
+  };
 
   // Group by subfield
   const subfieldGroups = useMemo(() => {
@@ -254,71 +188,56 @@ function ResultPageInner() {
 
   const subfields = useMemo(() => Object.keys(subfieldGroups), [subfieldGroups]);
 
-  // Arrange in sectors (cluster by subfield)
+  // Arrange in sectors
   const arrangedNodes = useMemo(() => {
-    try {
-      const arr = [];
-      let sectorIndex = 0;
-      subfields.forEach((sf) => {
-        const group = subfieldGroups[sf];
-        if (!group?.length) return;
-        const start = (sectorIndex / subfields.length) * 2 * Math.PI;
-        const end = ((sectorIndex + 1) / subfields.length) * 2 * Math.PI;
-        const compressed = (end - start) * subfieldAngleCompression;
-        const offset = (end - start - compressed) / 2;
-        group.forEach((node, i) => {
-          const angle = start + offset + (i / group.length) * compressed;
-          arr.push({ ...node, angle, subfield: sf });
-        });
-        sectorIndex++;
+    const arr = [];
+    let sectorIndex = 0;
+    subfields.forEach((sf) => {
+      const group = subfieldGroups[sf];
+      if (!group?.length) return;
+      const start = (sectorIndex / subfields.length) * 2 * Math.PI;
+      const end = ((sectorIndex + 1) / subfields.length) * 2 * Math.PI;
+      const compressed = (end - start) * subfieldAngleCompression;
+      const offset = (end - start - compressed) / 2;
+      group.forEach((node, i) => {
+        const angle = start + offset + (i / group.length) * compressed;
+        arr.push({ ...node, angle, subfield: sf });
       });
-      return arr;
-    } catch (e) {
-      addLog("❌ arrange error", { error: String(e) });
-      return [];
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      sectorIndex++;
+    });
+    return arr;
   }, [subfields, subfieldGroups]);
 
-  // To cartesian, distance by relevance
+  // To cartesian
   const nodePositions = useMemo(() => {
-    try {
-      return (arrangedNodes || []).map((n) => {
-        const rel = typeof n.relevance === "number" ? n.relevance : 0.2;
-        const distance = graphRadius * (1 - rel * 0.7);
-        const x = distance * Math.cos(n.angle);
-        const y = distance * Math.sin(n.angle);
-        return { ...n, x, y };
-      });
-    } catch (e) {
-      addLog("❌ position error", { error: String(e) });
-      return [];
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return (arrangedNodes || []).map((n) => {
+      const rel = typeof n.relevance === "number" ? n.relevance : 0.2;
+      const distance = graphRadius * (1 - rel * 0.7);
+      const x = distance * Math.cos(n.angle);
+      const y = distance * Math.sin(n.angle);
+      return { ...n, x, y };
+    });
   }, [arrangedNodes, graphRadius]);
 
   // Subfield circular zones
   const subfieldZones = useMemo(() => {
-    try {
-      return subfields.map((sf) => {
-        const group = nodePositions.filter((n) => n.subfield === sf);
-        if (!group.length) return { subfield: sf, x: 0, y: 0, radius: 0 };
-        const cx = group.reduce((s, n) => s + n.x, 0) / group.length;
-        const cy = group.reduce((s, n) => s + n.y, 0) / group.length;
-        const r = Math.max(...group.map((n) => Math.hypot(n.x - cx, n.y - cy))) + 80;
-        return { subfield: sf, x: cx, y: cy, radius: r };
-      });
-    } catch (e) {
-      addLog("❌ zone error", { error: String(e) });
-      return [];
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return subfields.map((sf) => {
+      const group = nodePositions.filter((n) => n.subfield === sf);
+      if (!group.length) return { subfield: sf, x: 0, y: 0, radius: 0 };
+      const cx = group.reduce((s, n) => s + n.x, 0) / group.length;
+      const cy = group.reduce((s, n) => s + n.y, 0) / group.length;
+      const r =
+        Math.max(...group.map((n) => Math.hypot(n.x - cx, n.y - cy))) + 80;
+      return { subfield: sf, x: cx, y: cy, radius: r };
+    });
   }, [nodePositions, subfields]);
 
-  const getRelevanceColor = (s) => (s > 0.7 ? "green" : s > 0.4 ? "orange" : "red");
+
+  const getRelevanceColor = (s) =>
+    s > 0.7 ? "green" : s > 0.4 ? "orange" : "red";
 
   return (
-    <div style={{ position: "relative", height: "100vh", width: "100vw", background: "white", overflow: "hidden" }}>
+    <div style={{ position: "relative", height: "100vh", width: "100vw" }}>
       {/* Back button */}
       <button
         onClick={() => navigate("/")}
@@ -340,33 +259,24 @@ function ResultPageInner() {
         NexSearch
       </button>
 
-      {/* Debug panel (network + app logs) */}
-      <div
+      {/* Toggle view button */}
+      <button
+        onClick={handleToggleView}
         style={{
           position: "absolute",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: "#111",
-          color: "#0f0",
-          padding: "8px",
-          fontSize: "11px",
-          maxHeight: "40%",
-          overflowY: "auto",
-          whiteSpace: "pre-wrap",
-          zIndex: 1000,
+          top: 20,
+          left: 20,
+          padding: "10px 20px",
+          background: "linear-gradient(135deg, #43e97b, #38f9d7)",
+          color: "white",
+          border: "none",
+          borderRadius: "25px",
+          cursor: "pointer",
+          zIndex: 200,
         }}
       >
-        {loading ? "⏳ Loading graph...\n" : ""}
-        {errMsg ? `❌ ${errMsg}\n` : ""}
-        {diag.method ? `Method: ${diag.method}\n` : ""}
-        {diag.url ? `URL: ${diag.url}\n` : ""}
-        {diag.status ? `Status: ${diag.status}\n` : ""}
-        {diag.contentType ? `Content-Type: ${diag.contentType}\n` : ""}
-        {diag.durationMs ? `Duration: ${diag.durationMs} ms\n` : ""}
-        {diag.textSnippet ? `Snippet: ${diag.textSnippet}\n` : ""}
-        {logs.length ? `---- Logs ----\n${logs.join("\n")}` : ""}
-      </div>
+        {view === "main" ? "Show Cited By" : "Show References"}
+      </button>
 
       {/* Subfield Zones */}
       {subfieldZones.map((zone) =>
@@ -389,22 +299,52 @@ function ResultPageInner() {
         ) : null
       )}
 
+      {/* Subfield Zone Labels */}
+      {subfieldZones.map((zone) =>
+        zone.radius > 0 ? (
+          <div
+            key={zone.subfield + "-label"}
+            style={{
+              position: "absolute",
+              top: `calc(50% + ${zone.y}px)`, // circle center Y
+              left: `calc(50% + ${zone.x}px)`, // circle center X
+              transform: "translate(-50%, -50%)", // center text
+              fontSize: "14px",
+              fontWeight: "bold",
+              color: "#006400",
+              background: "rgba(255,255,255,0.8)",
+              padding: "2px 6px",
+              borderRadius: "4px",
+              zIndex: 5,
+              pointerEvents: "none",
+            }}
+          >
+            {zone.subfield}
+          </div>
+        ) : null
+      )}
+
+
       {/* Center Node */}
-      {centerNode ? (
+      {centerNode && (
         <div
           onMouseEnter={(e) => {
             setHoveredNode(centerNode);
             setTooltipPos({ x: e.clientX + 15, y: e.clientY - 30 });
           }}
           onMouseLeave={() => setHoveredNode(null)}
-          onMouseMove={(e) => setTooltipPos({ x: e.clientX + 15, y: e.clientY - 30 })}
+          onMouseMove={(e) =>
+            setTooltipPos({ x: e.clientX + 15, y: e.clientY - 30 })
+          }
           style={{
             position: "absolute",
             top: "50%",
             left: "50%",
             transform: "translate(-50%, -50%)",
-            width: `${hoveredNode?.id === centerNode.id ? centerRadius * 2.4 : centerRadius * 2}px`,
-            height: `${hoveredNode?.id === centerNode.id ? centerRadius * 2.4 : centerRadius * 2}px`,
+            width: `${hoveredNode?.id === centerNode.id ? centerRadius * 2.4 : centerRadius * 2
+              }px`,
+            height: `${hoveredNode?.id === centerNode.id ? centerRadius * 2.4 : centerRadius * 2
+              }px`,
             backgroundColor: "rgba(255, 165, 0, 0.7)",
             borderRadius: "50%",
             cursor: "pointer",
@@ -412,12 +352,6 @@ function ResultPageInner() {
           }}
           title={centerNode.title}
         />
-      ) : (
-        <div
-          style={{ position: "absolute", top: 10, left: 10, padding: 8, background: "#fffbe6", borderRadius: 6 }}
-        >
-          (No center node found yet)
-        </div>
       )}
 
       {/* Nodes + Edges */}
@@ -458,14 +392,18 @@ function ResultPageInner() {
                 setTooltipPos({ x: e.clientX + 15, y: e.clientY - 30 });
               }}
               onMouseLeave={() => setHoveredNode(null)}
-              onMouseMove={(e) => setTooltipPos({ x: e.clientX + 15, y: e.clientY - 30 })}
+              onMouseMove={(e) =>
+                setTooltipPos({ x: e.clientX + 15, y: e.clientY - 30 })
+              }
               style={{
                 position: "absolute",
                 top: `calc(50% + ${node.y - nodeRadius}px)`,
                 left: `calc(50% + ${node.x - nodeRadius}px)`,
                 width: `${isHovered ? nodeRadius * 2.4 : nodeRadius * 2}px`,
                 height: `${isHovered ? nodeRadius * 2.4 : nodeRadius * 2}px`,
-                backgroundColor: isHovered ? "rgba(0, 0, 255, 0.8)" : "rgba(0, 0, 255, 0.5)",
+                backgroundColor: isHovered
+                  ? "rgba(0, 0, 255, 0.8)"
+                  : "rgba(0, 0, 255, 0.5)",
                 borderRadius: "50%",
                 cursor: "pointer",
                 zIndex: 2,
@@ -487,7 +425,9 @@ function ResultPageInner() {
                 zIndex: 3,
               }}
             >
-              {Number.isFinite(node.relevance) ? node.relevance.toFixed(3) : "0.200"}
+              {Number.isFinite(node.relevance)
+                ? node.relevance.toFixed(3)
+                : "0.200"}
             </div>
           </div>
         );
@@ -519,12 +459,14 @@ function ResultPageInner() {
           🏛 <b>Field:</b> {hoveredNode.field} <br />
           🔬 <b>Subfield:</b> {hoveredNode.subfield} <br />
           🎯 <b>Topic:</b> {hoveredNode.topic} <br />
-          🔗 <b>Related Topics:</b> {hoveredNode.related_topics.join(", ") || "None"}
+          🔗 <b>Related Topics:</b>{" "}
+          {hoveredNode.related_topics.join(", ") || "None"}
         </div>
       )}
     </div>
   );
 }
+
 
 /* Wrap page in the ErrorBoundary so render errors are shown instead of a blank screen */
 export default function ResultPage() {

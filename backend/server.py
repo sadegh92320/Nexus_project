@@ -34,7 +34,7 @@ def search_papers(q: str = Query(...)):
         print(f"❌ /api/search-papers failed after {time.time()-t0:.2f}s: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.post("/api/paper-graph/cites")
+@app.post("/api/paper-graph")
 def paper_graph_from_work(work: Dict[str, Any] = Body(..., embed=True)):
     """
     Expects a FULL OpenAlex work (from /api/search-papers result).
@@ -73,7 +73,7 @@ def paper_graph_from_work(work: Dict[str, Any] = Body(..., embed=True)):
 
 
 
-@app.post("/api/paper-graph/")
+@app.post("/api/paper-graph/cited-by")
 def paper_graph_from_work(work: Dict[str, Any] = Body(..., embed=True)):
     """
     Expects a FULL OpenAlex work (from /api/search-papers result).

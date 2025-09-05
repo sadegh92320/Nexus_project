@@ -107,7 +107,7 @@ def get_paper_pdf_urls(paper_objects):
     return pdf_urls
 
 
-def get_connected_graph(work, search_query="", relevance_search=True):
+def get_connected_graph(work, search_query="", relevance_search=False):
     # Given primary work - main node information, get the bulk references, extract pdf for all and create the connected graph
 
     reference_ids = [i['paperId'] for i in work['references']]
@@ -140,11 +140,11 @@ def get_connected_graph(work, search_query="", relevance_search=True):
     return graph.get_json()
 
 
-def get_connected_graph_cited_by(work, search_query="", relevance_search=True):
+def get_connected_graph_cited_by(work, search_query="", relevance_search=False):
 
     paper_id = work['paperId']
 
-    citations = get_paper_citations_information(paper_id)
+    citations = get_paper_citations_information(paper_id, limit=50)
 
     # Get citations
     citation_ids = [i['citingPaper']['paperId'] for i in citations['data']]

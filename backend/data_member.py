@@ -50,7 +50,8 @@ class SemanticNode(Node):
             
             try:
                 self.citations = paper_object['citationCount']
-                self.topic = paper_object['fieldsOfStudy']
+                self.topic = paper_object['fieldsOfStudy'][0]
+                self.subfield = paper_object['fieldsOfStudy'][0]
                 self.tldr = paper_object['tldr']['text']
                 self.doi = paper_object['externalIds']['DOI']
                 self.authors = [i['name'] for i in paper_object['authors'][:3]]
