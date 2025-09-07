@@ -4,6 +4,9 @@ from backend.text_extraction import extract_pdf_text_from_url
 from backend.data_member import SemanticNode, Graph
 import logging
 import regex as re
+from backend.semantic_scholar_requests import \
+get_paper_citations_information, get_paper_references_information, \
+get_paper_recommendations
 
 
 S2_API_KEY = read_api_key()
@@ -104,12 +107,50 @@ def get_paper_pdf_urls(paper_objects):
     return pdf_urls
 
 
-def get_connected_graph(work, search_query="", relevance_search=True):
+def get_connected_graph(work, search_query="", relevance_search=False):
     # Given primary work - main node information, get the bulk references, extract pdf for all and create the connected graph
 
     reference_ids = [i['paperId'] for i in work['references']]
 
     reference_papers = bulk_retrieve_papers(paper_ids=reference_ids)
+
+    paper_objects = [work] + reference_papers
+
+    paper_urls = get_paper_pdf_urls(reference_papers)
+
+    paper_objects = [i for i in paper_objects if i]
+
+    nodes = [SemanticNode(i) for i in paper_objects]
+
+    graph = Graph(
+        nodes=nodes, primary_node=nodes[0], search_query=search_query)
+
+    if relevance_search:
+        pdf_urls = get_paper_pdf_urls(paper_objects=paper_objects)
+        fulltexts = [extract_pdf_text_from_url(i) for i in pdf_urls]
+        for i, j in zip(fulltexts, graph.nodes):
+            if i:
+                j.fullltext = i
+                j.has_fulltext = True
+
+        graph.weigh_nodes()
+    else:
+        graph.randomly_weigh_nodes()
+
+    return graph.get_json()
+
+
+def get_connected_graph_cited_by(work, search_query="", relevance_search=False):
+
+    paper_id = work['paperId']
+
+    citations = get_paper_citations_information(paper_id, limit=50)
+
+    # Get citations
+    citation_ids = [i['citingPaper']['paperId'] for i in citations['data']]
+
+    reference_papers = bulk_retrieve_papers(
+        paper_ids=citation_ids)
 
     paper_objects = [work] + reference_papers
 
